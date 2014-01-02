@@ -16,7 +16,10 @@
     "autoload": {
         "psr-0": {
             "Andheiberg\\Auth": "src/"
-        }
+        },
+        "classmap": [
+            "src/Andheiberg/Auth/Exceptions.php"
+        ]
     },
     "minimum-stability": "dev"
 }

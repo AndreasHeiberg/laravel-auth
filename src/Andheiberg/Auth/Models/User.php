@@ -58,7 +58,7 @@ class User extends Eloquent implements UserInterface, RemindableInterface {
 	 * @var array
 	 */
 	protected $rules = [
-		'email' => 'required|email',
+		'email' => 'required|email|unique:users,email,:id:',
 		'password' => 'required',
 		'first_name' => 'required',
 		'last_name' => 'required',
@@ -153,13 +153,13 @@ class User extends Eloquent implements UserInterface, RemindableInterface {
 		$rules = $this->processRules($rules ?: $this->rules);
 		$validator = $this->validator->make($this->attributes, $rules);
 
-		if ($validator->passes())
+		if ($validator->fails())
 		{
-			return true;
+			$this->errors = $validator->messages();
+			return false;
 		}
 
-		$this->errors = $validator->messages();
-		return false;
+		return true;
 	}
 
 	/**
