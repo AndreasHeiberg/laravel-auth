@@ -180,6 +180,41 @@ class User extends Eloquent implements UserInterface, RemindableInterface {
 	}
 
 	/**
+	 * Validate the model's attributes.
+	 *
+	 * @param  array  $rules
+	 * @return bool
+	 */
+	public function activate()
+	{
+		return $this->restore();
+	}
+
+	/**
+	 * Validate the model's attributes.
+	 *
+	 * @param  array  $rules
+	 * @return bool
+	 */
+	public function deactivate()
+	{
+		return $this->delete();
+	}
+
+	public function isDeactivated()
+	{
+		return !! $this->deleted_at;
+	}
+
+
+
+
+
+
+
+
+
+	/**
 	 * Is the User a Role
 	 *
 	 * @param  array|string  $roles A single role or an array of roles
