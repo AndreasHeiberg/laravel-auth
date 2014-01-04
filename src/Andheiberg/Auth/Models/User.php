@@ -187,7 +187,8 @@ class User extends Eloquent implements UserInterface, RemindableInterface {
 	 */
 	public function activate()
 	{
-		return $this->restore();
+		$this->auth_activated = false;
+		return $this->save();
 	}
 
 	/**
@@ -198,12 +199,23 @@ class User extends Eloquent implements UserInterface, RemindableInterface {
 	 */
 	public function deactivate()
 	{
-		return $this->delete();
+		$this->auth_deactivated = true;
+		return $this->save();
 	}
 
 	public function isDeactivated()
 	{
-		return !! $this->deleted_at;
+		return !! $this->auth_deactivated;
+	}
+
+	public function scopeActive($query)
+	{
+		return $query->where('auth_deactivated', false);
+	}
+
+	public function scopeDeactivated($query)
+	{
+		return $query->where('auth_deactivated', true);
 	}
 
 
