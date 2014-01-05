@@ -1,7 +1,6 @@
 {
     "name": "andheiberg/auth",
     "description": "Modification of the official laravel auth package.",
-    "version": "1.0.0",
     "authors": [
         {
             "name": "Andreas Heiberg",
