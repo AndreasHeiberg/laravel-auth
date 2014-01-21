@@ -764,4 +764,15 @@ class Guard {
 		return ! $this->errors->isEmpty();
 	}
 
+	/**
+	 * Retrieve a user by the given credentials.
+	 *
+	 * @param  array  $credentials
+	 * @return \Illuminate\Auth\UserInterface|null
+	 */
+	public function retrieveByCredentials(array $credentials)
+	{
+		return $this->provider->retrieveByCredentials($credentials);
+	}
+
 }

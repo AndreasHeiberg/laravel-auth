@@ -224,7 +224,12 @@ class User extends Eloquent implements UserInterface, RemindableInterface {
 
 
 
+	public function addRole($role)
+	{
+		$id = is_int($role) ? (array) $role : Role::where('name', $role)->lists('id');
 
+		return $this->roles()->sync($id);
+	}
 
 	/**
 	 * Is the User a Role
