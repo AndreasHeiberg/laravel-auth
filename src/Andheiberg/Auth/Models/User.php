@@ -274,11 +274,10 @@ class User extends Eloquent implements UserInterface, RemindableInterface {
 		$permissions = is_array($permissions) ?: array($permissions);
 		$roles = $this->roles;
 		$roles_ids = [];
-
-		// Are we a super admin?
+		
 		foreach ($roles as $role)
 		{
-			if ($role->name === Config::get('auth::admin'))
+			if ($role->name == Config::get('auth.admin'))
 			{
 				return true;
 			}
