@@ -502,7 +502,7 @@ class Guard {
 		}
 		catch (UserInvalidPasswordException $e)
 		{
-			$this->errors->add('password', 'Please enter a valid email.');
+			$this->errors->add('password', 'Please enter a valid password.');
 		}
 
 		return $this;

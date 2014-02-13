@@ -1,6 +1,7 @@
 <?php namespace Andheiberg\Auth\Models;
 
 use Illuminate\Database\Eloquent\Model as Eloquent;
+use Andheiberg\Auth\Models\Permission;
 
 class Role extends Eloquent {
 
@@ -33,13 +34,50 @@ class Role extends Eloquent {
 	protected $rules = [];
 
 	/**
-     * Users
+     * Users relationship
      *
-     * @return object
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
      */
 	public function users()
 	{
-		return $this->belongsToMany('Models\User')->withTimestamps();
+		return $this->belongsToMany('Andheiberg\Auth\Models\User')->withTimestamps();
+	}
+
+	/**
+     * Permissions relationship
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+	public function permissions()
+	{
+		return $this->belongsToMany('Andheiberg\Auth\Models\Permission')->withTimestamps();
+	}
+
+	/**
+	 * Add one or multiple permissons to a role
+	 *
+	 * @param  array|string $permissions Single permission or an array or permissions
+	 * @return boolean
+	 */
+	public function addPermission($permissions)
+	{
+		$permissions = is_array($permissions) ?: array($permissions);
+
+		// Are we a super admin?
+		foreach ($permissions as $permission)
+		{
+			if ($p = Permission::where('name', $permission)->exists())
+			{
+				$this->permissions()->save($p);
+			}
+			else
+			{
+				$p = new Permission(['name' => $permission]);
+				$this->permissions()->save($p);
+			}
+		}
+
+		return $this;
 	}
 
 }

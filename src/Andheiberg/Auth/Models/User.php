@@ -123,13 +123,23 @@ class User extends Eloquent implements UserInterface, RemindableInterface {
 	}
 
 	/**
-	 * Roles
+	 * Roles relationship
 	 *
-	 * @return object
+	 * @return \Illuminate\Database\Eloquent\Relations\HasMany
 	 */
 	public function roles()
 	{
 		return $this->belongsToMany('Andheiberg\Verify\Models\Role', 'role_user')->withTimestamps();
+	}
+
+	/**
+	 * Permissions relationship
+	 *
+	 * @return \Illuminate\Database\Eloquent\Relations\HasMany
+	 */
+	public function permissions()
+	{
+		return $this->belongsToMany('Andheiberg\Verify\Models\Permission', 'permission_user')->withTimestamps();
 	}
 
 	/**
@@ -241,7 +251,7 @@ class User extends Eloquent implements UserInterface, RemindableInterface {
 	{
 		$roles = is_array($roles) ?: array($roles);
 
-		$valid = FALSE;
+		$valid = false;
 		foreach ($this->roles as $role)
 		{
 			if (in_array($role->name, $roles))
@@ -259,33 +269,36 @@ class User extends Eloquent implements UserInterface, RemindableInterface {
 	 * @param  array|string $permissions Single permission or an array or permissions
 	 * @return boolean
 	 */
-	public function hasPermission($permissions)
+	public function can($permissions)
 	{
 		$permissions = is_array($permissions) ?: array($permissions);
+		$roles = $this->roles;
+		$roles_ids = [];
 
 		// Are we a super admin?
-		foreach ($this->roles as $role)
+		foreach ($roles as $role)
 		{
-			if ($role->name === Config::get('verify::super_admin'))
+			if ($role->name === Config::get('auth::admin'))
+			{
+				return true;
+			}
+
+			$roles_ids[] = $role->id;
+		}
+
+		$hasPermissons = Permission::join('permission_role', 'permissions.id', '=', 'permission_role.permission_id')
+		->whereIn('permission_role.role_id', $roles_ids)
+		->get();
+
+		foreach ($hasPermissons as $permission)
+		{
+			if (in_array($permission->name, $permissions))
 			{
 				return true;
 			}
 		}
 
-		$valid = FALSE;
-		foreach ($this->roles as $role)
-		{
-			foreach ($role->permissions as $permission)
-			{
-				if (in_array($permission->name, $permissions))
-				{
-					$valid = true;
-					break 2;
-				}
-			}
-		}
-
-		return $valid;
+		return false;
 	}
 
 	/**
