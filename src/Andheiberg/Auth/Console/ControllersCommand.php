@@ -54,9 +54,7 @@ class ControllersCommand extends Command {
 
 			$this->info('Auth controllers created successfully!');
 
-			$this->comment("Route: Route::controller('auth', 'Controllers\Auth\AuthController');");
-			$this->comment("Route: Route::controller('password', 'Controllers\Auth\PasswordController');");
-			$this->comment("Route: Route::controller('verification', 'Controllers\Auth\VerificationController');");
+			$this->comment("Remember to add the needed routing.");
 		}
 		else
 		{
