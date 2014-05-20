@@ -92,7 +92,7 @@ class RemindersTableCommand extends Command {
 	 */
 	protected function getTable()
 	{
-		return $this->laravel['config']->get('auth.reminder.table');
+		return $this->laravel['config']->get('auth::reminder.table');
 	}
 
 }

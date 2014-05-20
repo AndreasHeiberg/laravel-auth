@@ -92,7 +92,7 @@ class UsersTableCommand extends Command {
 	 */
 	protected function getTable()
 	{
-		return $this->laravel['config']->get('auth.table');
+		return $this->laravel['config']->get('auth::table');
 	}
 
 }

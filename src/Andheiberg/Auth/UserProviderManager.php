@@ -16,7 +16,7 @@ class UserProviderManager extends Manager {
 		// When using the basic database user provider, we need to inject the table we
 		// want to use, since this is not an Eloquent model we will have no way to
 		// know without telling the provider, so we'll inject the config value.
-		$table = $this->app['config']['auth.table'];
+		$table = $this->app['config']['auth::table'];
 
 		return new DatabaseUserProvider($connection, $this->app['hash'], $table);
 	}
@@ -28,7 +28,7 @@ class UserProviderManager extends Manager {
 	 */
 	public function createEloquentDriver()
 	{
-		$model = $this->app['config']['auth.model'];
+		$model = $this->app['config']['auth::model'];
 
 		return new EloquentUserProvider($this->app['hash'], $model);
 	}
@@ -40,7 +40,7 @@ class UserProviderManager extends Manager {
 	 */
 	public function getDefaultDriver()
 	{
-		return $this->app['config']['auth.driver'];
+		return $this->app['config']['auth::driver'];
 	}
 
 	/**
@@ -51,7 +51,7 @@ class UserProviderManager extends Manager {
 	 */
 	public function setDefaultDriver($name)
 	{
-		$this->app['config']['auth.driver'] = $name;
+		$this->app['config']['auth::driver'] = $name;
 	}
 
 }

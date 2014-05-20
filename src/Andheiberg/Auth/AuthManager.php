@@ -91,7 +91,7 @@ class AuthManager extends Manager {
 	 */
 	public function getDefaultDriver()
 	{
-		return $this->app['config']['auth.driver'];
+		return $this->app['config']['auth::driver'];
 	}
 
 	/**
@@ -102,7 +102,7 @@ class AuthManager extends Manager {
 	 */
 	public function setDefaultDriver($name)
 	{
-		$this->app['config']['auth.driver'] = $name;
+		$this->app['config']['auth::driver'] = $name;
 	}
 
 }

@@ -137,11 +137,11 @@ class AuthServiceProvider extends ServiceProvider {
 			// The database reminder repository is an implementation of the reminder repo
 			// interface, and is responsible for the actual storing of auth tokens and
 			// their e-mail addresses. We will inject this table and hash key to it.
-			$table = $app['config']['auth.reminder.table'];
+			$table = $app['config']['auth::reminder.table'];
 
 			$key = $app['config']['app.key'];
 
-			$expire = $app['config']->get('auth.reminder.expire', 60);
+			$expire = $app['config']->get('auth::reminder.expire', 60);
 
 			return new DbRepository($connection, $table, $key, $expire);
 		});
