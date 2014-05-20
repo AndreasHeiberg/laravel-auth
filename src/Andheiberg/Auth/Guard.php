@@ -382,7 +382,7 @@ class Guard {
 
 		if ($login)
 		{
-			$this->login($credentials, $remember);
+			$this->login($user, $remember);
 		}
 
 		return $user;
