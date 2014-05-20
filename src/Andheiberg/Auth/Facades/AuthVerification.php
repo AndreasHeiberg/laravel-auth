@@ -3,15 +3,15 @@
 use Illuminate\Support\Facades\Facade as Facade;
 
 /**
- * @see \Andheiberg\Auth\Reminders\PasswordBroker
+ * @see \Andheiberg\Auth\Reminders\VerificationBroker
  */
-class Password extends Facade {
+class AuthVerification extends Facade {
 
 	/**
 	 * Get the registered name of the component.
 	 *
 	 * @return string
 	 */
-	protected static function getFacadeAccessor() { return 'auth.reminder.password'; }
+	protected static function getFacadeAccessor() { return 'auth.reminder.verification'; }
 
 }

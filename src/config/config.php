@@ -4,6 +4,24 @@ return array(
 
 	/*
 	|--------------------------------------------------------------------------
+	| Use Auth Routes & Controllers
+	|--------------------------------------------------------------------------
+	|
+	| Auth comes with complete routes, controllers and views. However you might
+	| desire to customize the auth flows beyond what can be done with events
+	| and changing views. If false the package routes will be disabled.
+	|
+	| Hint: 'php artisan auth::controllers' will copy the package controllers
+	| to /app/controllers/auth and give you a starting point for customization.
+	|
+	*/
+
+	'routes' => true,
+
+	'successful-login-route' => 'dashboard',
+
+	/*
+	|--------------------------------------------------------------------------
 	| Default Authentication Driver
 	|--------------------------------------------------------------------------
 	|
@@ -11,7 +29,7 @@ return array(
 	| This driver manages the retrieval and authentication of the users
 	| attempting to get access to protected areas of your application.
 	|
-	| Supported: "eloquent"
+	| Supported: "database", "eloquent"
 	|
 	*/
 
@@ -28,7 +46,7 @@ return array(
 	|
 	*/
 
-	'model' => 'Models\User',
+	'model' => 'User',
 
 	/*
 	|--------------------------------------------------------------------------
@@ -42,17 +60,6 @@ return array(
 	*/
 
 	'table' => 'users',
-
-	/*
-	|--------------------------------------------------------------------------
-	| Admin role
-	|--------------------------------------------------------------------------
-	|
-	| The name of the role you would like to grant permission to do anything.
-	|
-	*/
-
-	'admin' => 'admin',
 
 	/*
 	|--------------------------------------------------------------------------
@@ -74,38 +81,6 @@ return array(
 		'table' => 'auth_reminders',
 
 		'expire' => 60,
-		
-	),
-
-	'password-reminder' => array(
-
-		'email' => 'emails.auth.password-reminder',
-
-		'subject' => 'Reset your password on momentum.li',
-
-	),
-
-	/*
-	|--------------------------------------------------------------------------
-	| Email Verification Reminder Settings
-	|--------------------------------------------------------------------------
-	|
-	| Here you may set the settings for email verification reminders, including
-	| a view that should be used as your email verification reminder e-mail.
-	| You will also be able to set the name of the table that holds the reset
-	| tokens.
-	|
-	| The "expire" time is the number of minutes that the reminder should be
-	| considered valid. This security feature keeps tokens short-lived so
-	| they have less time to be guessed. You may change this as needed.
-	|
-	*/
-
-	'email-verification-reminder' => array(
-
-		'email' => 'emails.auth.email-verification-reminder',
-
-		'subject' => 'Verify your email on momentum.li',
 
 	),
 

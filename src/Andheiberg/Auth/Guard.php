@@ -5,8 +5,8 @@ use Illuminate\Events\Dispatcher;
 use Symfony\Component\HttpFoundation\Request;
 use Illuminate\Session\Store as SessionStore;
 use Symfony\Component\HttpFoundation\Response;
-use Illuminate\Support\MessageBag;
-use Andheiberg\Auth\Reminders\EmailVerificationBroker;
+use Andheiberg\Auth\Reminders\VerificationBroker;
+use Andheiberg\Auth\Exceptions\LoginUserNotFoundException;
 
 class Guard {
 
@@ -39,16 +39,23 @@ class Guard {
 	protected $provider;
 
 	/**
+	 * The verification broker implementation.
+	 *
+	 * @var \Andheiberg\Auth\UserProviderInterface
+	 */
+	protected $verification;
+
+	/**
 	 * The session store used by the guard.
 	 *
-	 * @var \Andheiberg\Session\Store
+	 * @var \Illuminate\Session\Store
 	 */
 	protected $session;
 
 	/**
 	 * The Illuminate cookie creator service.
 	 *
-	 * @var \Andheiberg\Cookie\CookieJar
+	 * @var \Illuminate\Cookie\CookieJar
 	 */
 	protected $cookie;
 
@@ -62,16 +69,9 @@ class Guard {
 	/**
 	 * The event dispatcher instance.
 	 *
-	 * @var \Andheiberg\Events\Dispatcher
+	 * @var \Illuminate\Events\Dispatcher
 	 */
 	protected $events;
-
-	/**
-	 * The email verification reminder instance.
-	 *
-	 * @var \Andheiberg\Auth\Reminders\emailVerificationBroker
-	 */
-	protected $emailVerificationBroker;
 
 	/**
 	 * Indicates if the logout method has been called.
@@ -81,30 +81,21 @@ class Guard {
 	protected $loggedOut = false;
 
 	/**
-	 * Validation erros
-	 *
-	 * @var Illuminate\Support\MessageBag
-	 */
-	public $errors;
-
-	/**
 	 * Create a new authentication guard.
 	 *
 	 * @param  \Andheiberg\Auth\UserProviderInterface  $provider
-	 * @param  \Andheiberg\Session\Store  $session
+	 * @param  \Illuminate\Session\Store  $session
 	 * @return void
 	 */
 	public function __construct(UserProviderInterface $provider,
-                                SessionStore $session,
-                                MessageBag $errors,
-                                EmailVerificationBroker $emailVerificationBroker,
-                                Request $request = null)
+								VerificationBroker $verification,
+								SessionStore $session,
+								Request $request = null)
 	{
 		$this->session = $session;
 		$this->request = $request;
 		$this->provider = $provider;
-		$this->errors = $errors;
-		$this->emailVerificationBroker = $emailVerificationBroker;
+		$this->verification = $verification;
 	}
 
 	/**
@@ -163,12 +154,40 @@ class Guard {
 
 		if (is_null($user) && ! is_null($recaller))
 		{
-			$user = $this->provider->retrieveByID($recaller);
-
-			$this->viaRemember = ! is_null($user);
+			$user = $this->getUserByRecaller($recaller);
 		}
 
 		return $this->user = $user;
+	}
+
+	/**
+	 * Get the ID for the currently authenticated user.
+	 *
+	 * @return int|null
+	 */
+	public function id()
+	{
+		if ($this->loggedOut) return;
+
+		return $this->session->get($this->getName()) ?: $this->getRecallerId();
+	}
+
+	/**
+	 * Pull a user from the repository by its recaller ID.
+	 *
+	 * @param  string  $recaller
+	 * @return mixed
+	 */
+	protected function getUserByRecaller($recaller)
+	{
+		if ($this->validRecaller($recaller))
+		{
+			list($id, $token) = explode('|', $recaller, 2);
+
+			$this->viaRemember = ! is_null($user = $this->provider->retrieveByToken($id, $token));
+
+			return $user;
+		}
 	}
 
 	/**
@@ -179,6 +198,34 @@ class Guard {
 	protected function getRecaller()
 	{
 		return $this->request->cookies->get($this->getRecallerName());
+	}
+
+	/**
+	 * Get the user ID from the recaller cookie.
+	 *
+	 * @return string
+	 */
+	protected function getRecallerId()
+	{
+		if ($this->validRecaller($recaller = $this->getRecaller()))
+		{
+			return head(explode('|', $recaller));
+		}
+	}
+
+	/**
+	 * Determine if the recaller cookie is in a valid format.
+	 *
+	 * @param  string  $recaller
+	 * @return bool
+	 */
+	protected function validRecaller($recaller)
+	{
+		if ( ! is_string($recaller) || ! str_contains($recaller, '|')) return false;
+
+		$segments = explode('|', $recaller);
+
+		return count($segments) == 2 && trim($segments[0]) !== '' && trim($segments[1]) !== '';
 	}
 
 	/**
@@ -292,7 +339,7 @@ class Guard {
 	 * @param  array  $credentials
 	 * @param  bool   $remember
 	 * @param  bool   $login
-	 * @return $this
+	 * @return bool
 	 */
 	public function attempt(array $credentials = array(), $remember = false, $login = true)
 	{
@@ -303,33 +350,59 @@ class Guard {
 		// If an implementation of UserInterface was returned, we'll ask the provider
 		// to validate the user against the given credentials, and if they are in
 		// fact valid we'll log the users into the application and return true.
-		if ($user instanceof UserInterface)
+		if ($this->hasValidCredentials($user, $credentials))
 		{
-			try {
-				if ($this->provider->validateCredentials($user, $credentials))
-				{
-					if ($login) $this->login($user, $remember);
-				}
-			}
-			catch (UserPasswordIncorrectException $e)
-			{
-				$this->errors->add('password', 'Wrong password');
-			}
-			catch (UserUnverifiedException $e)
-			{
-				$this->errors->add('email', 'User not verified');
-			}
-			catch (UserDeletedException $e)
-			{
-				$this->errors->add('email', 'User deleted');
-			}
-		}
-		else
-		{
-			$this->errors->add('email', 'User could not be found');
+			if ($login) $this->login($user, $remember);
+
+			return true;
 		}
 
-		return $this;
+		return false;
+	}
+
+	/**
+	 * Register a new user using the given credentials.
+	 *
+	 * @param  array  $credentials
+	 * @param  bool   $verify
+	 * @param  bool   $login
+	 * @param  bool   $remember
+	 * @return bool
+	 */
+	public function register(array $credentials = array(), $verify = true, $login = false, $remember = false)
+	{
+		$this->fireRegisterEvent($credentials, $remember, $login, $remember);
+
+		$user = $this->provider->register($credentials, $verify);
+
+		if ($verify)
+		{
+			$this->verification->remind($credentials); // the callback is kinda needed here
+		}
+
+		if ($login)
+		{
+			$this->login($credentials, $remember);
+		}
+
+		return $user;
+	}
+
+	/**
+	 * Determine if the user matches the credentials.
+	 *
+	 * @param  mixed  $user
+	 * @param  array  $credentials
+	 * @return bool
+	 */
+	protected function hasValidCredentials($user, $credentials)
+	{
+		if (is_null($user))
+		{
+			throw new LoginUserNotFoundException;
+		}
+
+		return $this->provider->validateCredentials($user, $credentials);
 	}
 
 	/**
@@ -365,6 +438,24 @@ class Guard {
 	}
 
 	/**
+	 * Fire the register event with the arguments.
+	 *
+	 * @param  array  $credentials
+	 * @param  bool   $remember
+	 * @param  bool   $login
+	 * @return void
+	 */
+	protected function fireRegisterEvent(array $credentials, $verify, $login, $remember)
+	{
+		if ($this->events)
+		{
+			$payload = array($credentials, $verify, $login, $remember);
+
+			$this->events->fire('auth.register', $payload);
+		}
+	}
+
+	/**
 	 * Log a user into the application.
 	 *
 	 * @param  \Andheiberg\Auth\UserInterface  $user
@@ -373,14 +464,16 @@ class Guard {
 	 */
 	public function login(UserInterface $user, $remember = false)
 	{
-		$this->updateSession($id = $user->getAuthIdentifier());
+		$this->updateSession($user->getAuthIdentifier());
 
 		// If the user should be permanently "remembered" by the application we will
 		// queue a permanent cookie that contains the encrypted copy of the user
 		// identifier. We will then decrypt this later to retrieve the users.
 		if ($remember)
 		{
-			$this->queueRecallerCookie($id);
+			$this->createRememberTokenIfDoesntExist($user);
+
+			$this->queueRecallerCookie($user);
 		}
 
 		// If we have an event dispatcher instance set we will fire an event so that
@@ -437,125 +530,27 @@ class Guard {
 	}
 
 	/**
-	 * Log the given user ID into the application.
-	 *
-	 * @param  mixed  $id
-	 * @param  bool   $remember
-	 * @return \Andheiberg\Auth\UserInterface
-	 */
-	public function loginUsingEmail($id, $remember = false)
-	{
-		$this->session->put($this->getName(), $id);
-
-		$this->login($user = $this->provider->retrieveByEmail($id), $remember);
-
-		return $user;
-	}
-
-	/**
-	 * Log the given user ID into the application without sessions or cookies.
-	 *
-	 * @param  mixed  $email
-	 * @return bool
-	 */
-	public function onceUsingEmail($email)
-	{
-		$this->setUser($this->provider->retrieveByEmail($email));
-
-		return $this->user instanceof UserInterface;
-	}
-
-	/**
-	 * Register a user to the application.
-	 *
-	 * @param  array $credentials
-	 * @param  bool  $login
-	 * @return $this
-	 */
-	public function register($credentials, $login = false)
-	{
-		try {
-			$user = $this->provider->register($credentials, $login);
-
-			if ($user->hasErrors())
-			{
-				$this->errors = $user->errors;
-				return $this;
-			}
-
-			if ($login)
-			{
-				$this->setUser($user);
-			}
-			else
-			{
-				$this->emailVerificationBroker->remind($credentials);
-			}
-		}
-		catch (UserAlreadyExistsException $e)
-		{
-			$this->errors->add('email', 'A user already exists with this email.');
-		}
-		catch (UserInvalidEmailException $e)
-		{
-			$this->errors->add('email', 'Please enter a valid email.');
-		}
-		catch (UserInvalidPasswordException $e)
-		{
-			$this->errors->add('password', 'Please enter a valid password.');
-		}
-
-		return $this;
-	}
-
-	/**
-	 * Verify a users email
-	 *
-	 * @param  array $credentials
-	 * @param  bool  $force
-	 * @return $this
-	 */
-	public function verifyEmail($credentials, $force = false)
-	{
-		if ($force)
-		{
-			$user = $this->provider->retrieveByCredentials($credentials);
-			$user->auth_email_verified = true;
-			$user->save();
-
-			return $this;
-		}
-
-		$verify = $this->emailVerificationBroker->verify($credentials);
-
-		if ($verify->hasErrors())
-		{
-			$this->errors = $verify->errors;
-		}
-
-		return $this;
-	}
-
-	/**
 	 * Queue the recaller cookie into the cookie jar.
 	 *
-	 * @param  string  $id
+	 * @param  \Andheiberg\Auth\UserInterface  $user
 	 * @return void
 	 */
-	protected function queueRecallerCookie($id)
+	protected function queueRecallerCookie(UserInterface $user)
 	{
-		$this->getCookieJar()->queue($this->createRecaller($id));
+		$value = $user->getAuthIdentifier().'|'.$user->getRememberToken();
+
+		$this->getCookieJar()->queue($this->createRecaller($value));
 	}
 
 	/**
 	 * Create a remember me cookie for a given ID.
 	 *
-	 * @param  mixed  $id
+	 * @param  string  $value
 	 * @return \Symfony\Component\HttpFoundation\Cookie
 	 */
-	protected function createRecaller($id)
+	protected function createRecaller($value)
 	{
-		return $this->getCookieJar()->forever($this->getRecallerName(), $id);
+		return $this->getCookieJar()->forever($this->getRecallerName(), $value);
 	}
 
 	/**
@@ -571,6 +566,11 @@ class Guard {
 		// so any further processing can be done. This allows the developer to be
 		// listening for anytime a user signs out of this application manually.
 		$this->clearUserDataFromStorage();
+
+		if ( ! is_null($this->user))
+		{
+			$this->refreshRememberToken($user);
+		}
 
 		if (isset($this->events))
 		{
@@ -600,9 +600,36 @@ class Guard {
 	}
 
 	/**
+	 * Refresh the remember token for the user.
+	 *
+	 * @param  \Andheiberg\Auth\UserInterface  $user
+	 * @return void
+	 */
+	protected function refreshRememberToken(UserInterface $user)
+	{
+		$user->setRememberToken($token = str_random(60));
+
+		$this->provider->updateRememberToken($user, $token);
+	}
+
+	/**
+	 * Create a new remember token for the user if one doesn't already exist.
+	 *
+	 * @param  \Andheiberg\Auth\UserInterface  $user
+	 * @return void
+	 */
+	protected function createRememberTokenIfDoesntExist(UserInterface $user)
+	{
+		if (is_null($user->getRememberToken()))
+		{
+			$this->refreshRememberToken($user);
+		}
+	}
+
+	/**
 	 * Get the cookie creator instance used by the guard.
 	 *
-	 * @return \Andheiberg\Cookie\CookieJar
+	 * @return \Illuminate\Cookie\CookieJar
 	 *
 	 * @throws \RuntimeException
 	 */
@@ -619,7 +646,7 @@ class Guard {
 	/**
 	 * Set the cookie creator instance used by the guard.
 	 *
-	 * @param  \Andheiberg\Cookie\CookieJar  $cookie
+	 * @param  \Illuminate\Cookie\CookieJar  $cookie
 	 * @return void
 	 */
 	public function setCookieJar(CookieJar $cookie)
@@ -630,7 +657,7 @@ class Guard {
 	/**
 	 * Get the event dispatcher instance.
 	 *
-	 * @return \Andheiberg\Events\Dispatcher
+	 * @return \Illuminate\Events\Dispatcher
 	 */
 	public function getDispatcher()
 	{
@@ -640,7 +667,7 @@ class Guard {
 	/**
 	 * Set the event dispatcher instance.
 	 *
-	 * @param  \Andheiberg\Events\Dispatcher
+	 * @param  \Illuminate\Events\Dispatcher
 	 */
 	public function setDispatcher(Dispatcher $events)
 	{
@@ -650,7 +677,7 @@ class Guard {
 	/**
 	 * Get the session store used by the guard.
 	 *
-	 * @return \Andheiberg\Session\Store
+	 * @return \Illuminate\Session\Store
 	 */
 	public function getSession()
 	{
@@ -725,6 +752,16 @@ class Guard {
 	}
 
 	/**
+	 * Get the last user we attempted to authenticate.
+	 *
+	 * @return \Andheiberg\Auth\UserInterface
+	 */
+	public function getLastAttempted()
+	{
+		return $this->lastAttempted;
+	}
+
+	/**
 	 * Get a unique identifier for the auth session value.
 	 *
 	 * @return string
@@ -752,27 +789,6 @@ class Guard {
 	public function viaRemember()
 	{
 		return $this->viaRemember;
-	}
-
-	/**
-	 * Determine if the user was authenticated via "remember me" cookie.
-	 *
-	 * @return bool
-	 */
-	public function hasErrors()
-	{
-		return ! $this->errors->isEmpty();
-	}
-
-	/**
-	 * Retrieve a user by the given credentials.
-	 *
-	 * @param  array  $credentials
-	 * @return \Illuminate\Auth\UserInterface|null
-	 */
-	public function retrieveByCredentials(array $credentials)
-	{
-		return $this->provider->retrieveByCredentials($credentials);
 	}
 
 }

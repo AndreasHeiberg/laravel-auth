@@ -1,9 +1,29 @@
 <?php namespace Andheiberg\Auth;
 
 use Illuminate\Support\Manager;
-use Illuminate\Support\MessageBag;
 
 class AuthManager extends Manager {
+
+	/**
+	 * The ProviderManager instance.
+	 *
+	 * @var \Andheiberg\Auth\ProviderManager
+	 */
+	protected $providers;
+
+	/**
+	 * Create a new manager instance.
+	 *
+	 * @param  \Illuminate\Foundation\Application   $app
+	 * @param  \Andheiberg\Auth\UserProviderManager $providers
+	 * @return void
+	 */
+	public function __construct($app, UserProviderManager $providers)
+	{
+		parent::__construct($app);
+
+		$this->providers = $providers;
+	}
 
 	/**
 	 * Create a new driver instance.
@@ -37,60 +57,31 @@ class AuthManager extends Manager {
 
 		if ($custom instanceof Guard) return $custom;
 
-		return new Guard($custom, $this->app['session.store'], new MessageBag, $this->app['auth.email-verification-reminder']);
+		return new Guard($custom, $this->app['auth.reminder.verification'], $this->app['session.store']);
 	}
 
 	/**
 	 * Create an instance of the database driver.
 	 *
-	 * @return \Illuminate\Auth\Guard
+	 * @return \Andheiberg\Auth\Guard
 	 */
 	public function createDatabaseDriver()
 	{
-		$provider = $this->createDatabaseProvider();
+		$provider = $this->providers->createDatabaseDriver();
 
-		return new Guard($provider, $this->app['session.store'], new MessageBag, $this->app['auth.email-verification-reminder']);
-	}
-
-	/**
-	 * Create an instance of the database user provider.
-	 *
-	 * @return \Illuminate\Auth\DatabaseUserProvider
-	 */
-	protected function createDatabaseProvider()
-	{
-		$connection = $this->app['db']->connection();
-
-		// When using the basic database user provider, we need to inject the table we
-		// want to use, since this is not an Eloquent model we will have no way to
-		// know without telling the provider, so we'll inject the config value.
-		$table = $this->app['config']['auth.table'];
-
-		return new DatabaseUserProvider($connection, $this->app['hash'], $table);
+		return new Guard($provider, $this->app['auth.reminder.verification'], $this->app['session.store']);
 	}
 
 	/**
 	 * Create an instance of the Eloquent driver.
 	 *
-	 * @return \Illuminate\Auth\Guard
+	 * @return \Andheiberg\Auth\Guard
 	 */
 	public function createEloquentDriver()
 	{
-		$provider = $this->createEloquentProvider();
+		$provider = $this->providers->createEloquentDriver();
 
-		return new Guard($provider, $this->app['session.store'], new MessageBag, $this->app['auth.email-verification-reminder']);
-	}
-
-	/**
-	 * Create an instance of the Eloquent user provider.
-	 *
-	 * @return \Illuminate\Auth\EloquentUserProvider
-	 */
-	protected function createEloquentProvider()
-	{
-		$model = $this->app['config']['auth.model'];
-
-		return new EloquentUserProvider($this->app['hash'], $model);
+		return new Guard($provider, $this->app['auth.reminder.verification'], $this->app['session.store']);
 	}
 
 	/**
@@ -98,9 +89,20 @@ class AuthManager extends Manager {
 	 *
 	 * @return string
 	 */
-	protected function getDefaultDriver()
+	public function getDefaultDriver()
 	{
 		return $this->app['config']['auth.driver'];
+	}
+
+	/**
+	 * Set the default authentication driver name.
+	 *
+	 * @param  string  $name
+	 * @return void
+	 */
+	public function setDefaultDriver($name)
+	{
+		$this->app['config']['auth.driver'] = $name;
 	}
 
 }

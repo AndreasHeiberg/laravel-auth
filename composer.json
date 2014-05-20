@@ -1,6 +1,6 @@
 {
     "name": "andheiberg/auth",
-    "description": "Modification of the official laravel auth package.",
+    "description": "Extension of the base laravel auth package",
     "authors": [
         {
             "name": "Andreas Heiberg",
@@ -8,17 +8,32 @@
         }
     ],
     "require": {
-        "php": ">=5.3.0",
-        "illuminate/support": "4.1.x",
-        "illuminate/filesystem": "4.1.x"
+        "php": ">=5.4.0",
+        "illuminate/cookie": "4.2.*",
+        "illuminate/encryption": "4.2.*",
+        "illuminate/events": "4.2.*",
+        "illuminate/hashing": "4.2.*",
+        "illuminate/http": "4.2.*",
+        "illuminate/session": "4.2.*",
+        "illuminate/support": "4.2.*",
+        "nesbot/carbon": "~1.0"
+    },
+    "require-dev": {
+        "illuminate/console": "4.2.*",
+        "illuminate/routing": "4.2.*",
+        "phpunit/phpunit": "4.0.*"
+    },
+    "suggest": {
+        "andheiberg/notify": "Allows the package controllers to notify the user. (if you write your own controllers this is not needed)"
     },
     "autoload": {
-        "psr-0": {
-            "Andheiberg\\Auth": "src/"
-        },
         "classmap": [
-            "src/Andheiberg/Auth/Exceptions.php"
-        ]
+            "src/migrations",
+            "src/controllers"
+        ],
+        "psr-0": {
+            "Andheiberg\\Auth\\": "src/"
+        }
     },
-    "minimum-stability": "dev"
+    "minimum-stability": "stable"
 }

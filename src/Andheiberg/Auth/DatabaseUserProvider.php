@@ -1,12 +1,20 @@
 <?php namespace Andheiberg\Auth;
 
+use Illuminate\Database\Connection;
 use Illuminate\Hashing\HasherInterface;
 use Andheiberg\Auth\Exceptions\LoginIncorrectPasswordException;
 use Andheiberg\Auth\Exceptions\LoginUserDeactivatedException;
 use Andheiberg\Auth\Exceptions\LoginUserNotFoundException;
 use Andheiberg\Auth\Exceptions\LoginUserUnverifiedException;
 
-class EloquentUserProvider implements UserProviderInterface {
+class DatabaseUserProvider implements UserProviderInterface {
+
+	/**
+	 * The active database connection.
+	 *
+	 * @param  \Illuminate\Database\Connection
+	 */
+	protected $conn;
 
 	/**
 	 * The hasher implementation.
@@ -16,22 +24,24 @@ class EloquentUserProvider implements UserProviderInterface {
 	protected $hasher;
 
 	/**
-	 * The Eloquent user model.
+	 * The table containing the users.
 	 *
 	 * @var string
 	 */
-	protected $model;
+	protected $table;
 
 	/**
 	 * Create a new database user provider.
 	 *
+	 * @param  \Illuminate\Database\Connection  $conn
 	 * @param  \Illuminate\Hashing\HasherInterface  $hasher
-	 * @param  string  $model
+	 * @param  string  $table
 	 * @return void
 	 */
-	public function __construct(HasherInterface $hasher, $model)
+	public function __construct(Connection $conn, HasherInterface $hasher, $table)
 	{
-		$this->model = $model;
+		$this->conn = $conn;
+		$this->table = $table;
 		$this->hasher = $hasher;
 	}
 
@@ -43,7 +53,12 @@ class EloquentUserProvider implements UserProviderInterface {
 	 */
 	public function retrieveById($identifier)
 	{
-		return $this->createModel()->newQuery()->find($identifier);
+		$user = $this->conn->table($this->table)->find($identifier);
+
+		if ( ! is_null($user))
+		{
+			return new GenericUser((array) $user);
+		}
 	}
 
 	/**
@@ -55,12 +70,15 @@ class EloquentUserProvider implements UserProviderInterface {
 	 */
 	public function retrieveByToken($identifier, $token)
 	{
-		$model = $this->createModel();
+		$user = $this->conn->table($this->table)
+                                ->where('id', $identifier)
+                                ->where('remember_token', $token)
+                                ->first();
 
-		return $model->newQuery()
-                        ->where($model->getKeyName(), $identifier)
-                        ->where($model->getRememberTokenName(), $token)
-                        ->first();
+		if ( ! is_null($user))
+		{
+			return new GenericUser((array) $user);
+		}
 	}
 
 	/**
@@ -72,9 +90,9 @@ class EloquentUserProvider implements UserProviderInterface {
 	 */
 	public function updateRememberToken(UserInterface $user, $token)
 	{
-		$user->setAttribute($user->getRememberTokenName(), $token);
-
-		$user->save();
+		$this->conn->table($this->table)
+                            ->where('id', $user->getAuthIdentifier())
+                            ->update(array('remember_token' => $token));
 	}
 
 	/**
@@ -87,15 +105,26 @@ class EloquentUserProvider implements UserProviderInterface {
 	{
 		// First we will add each credential element to the query as a where clause.
 		// Then we can execute the query and, if we found a user, return it in a
-		// Eloquent User "model" that will be utilized by the Guard instances.
-		$query = $this->createModel()->newQuery();
+		// generic "user" object that will be utilized by the Guard instances.
+		$query = $this->conn->table($this->table);
 
 		foreach ($credentials as $key => $value)
 		{
-			if ( ! str_contains($key, 'password')) $query->where($key, $value);
+			if ( ! str_contains($key, 'password'))
+			{
+				$query->where($key, $value);
+			}
 		}
 
-		return $query->first();
+		// Now we are ready to execute the query to see if we have an user matching
+		// the given credentials. If not, we will just return nulls and indicate
+		// that there are no matching users for these given credential arrays.
+		$user = $query->first();
+
+		if ( ! is_null($user))
+		{
+			return new GenericUser((array) $user);
+		}
 	}
 
 	/**
@@ -119,7 +148,7 @@ class EloquentUserProvider implements UserProviderInterface {
 			throw new LoginUserUnverifiedException;
 		}
 
-		if ($user->getAuthDeactivated())
+		if ( ! $user->getAuthDeactivated())
 		{
 			throw new LoginUserDeactivatedException;
 		}
@@ -136,28 +165,32 @@ class EloquentUserProvider implements UserProviderInterface {
 	 */
 	public function register(array $credentials = array(), $verify = true)
 	{
-		$credentials['password'] = $this->hasher->make($credentials['password']);
-		
-		$user = $this->createModel()->create($credentials);
+		$user = new GenericUser($credentials);
 
 		if ( ! $verify)
 		{
-			$this->updateAuthVerified($user, true);
+			$user->setAuthVerified(true);
 		}
+
+		$this->conn->table($this->table)->insert($user->getAttributes());
+
+		return $user;
 	}
 
 	/**
 	 * Update the "verified" boolean for the given user in storage.
 	 *
 	 * @param  \Andheiberg\Auth\UserInterface  $user
-	 * @param  bool   $value
+	 * @param  bool  $value
 	 * @return void
 	 */
 	public function updateAuthVerified(UserInterface $user, $value)
 	{
 		$user->setAuthVerified($value);
 
-		$user->save();
+		$this->conn->table($this->table)
+                            ->where('id', $user->getAuthIdentifier())
+                            ->update(array('auth_verified' => $value));
 	}
 
 	/**
@@ -173,19 +206,8 @@ class EloquentUserProvider implements UserProviderInterface {
 
 		$user->setAuthPassword($hash);
 
-		$user->save();
+		$this->conn->table($this->table)
+                            ->where('id', $user->getAuthIdentifier())
+                            ->update(array('password' => $value));
 	}
-
-	/**
-	 * Create a new instance of the model.
-	 *
-	 * @return \Illuminate\Database\Eloquent\Model
-	 */
-	public function createModel()
-	{
-		$class = '\\'.ltrim($this->model, '\\');
-
-		return new $class;
-	}
-
 }

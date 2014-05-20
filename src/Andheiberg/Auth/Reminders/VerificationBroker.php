@@ -3,14 +3,39 @@
 use Closure;
 use Illuminate\Mail\Mailer;
 use Andheiberg\Auth\UserProviderInterface;
-use Andheiberg\Auth\Exceptions\PasswordBrokerUserNotFoundException;
-use Andheiberg\Auth\Exceptions\PasswordBrokerInvalidPasswordException;
-use Andheiberg\Auth\Exceptions\PasswordBrokerInvalidTokenException;
 
-class PasswordBroker {
+class VerificationBroker {
 
 	/**
-	 * The password reminder repository.
+	 * Constant representing a successfully sent reminder.
+	 *
+	 * @var int
+	 */
+	const REMINDER_SENT = 'reminders.sent';
+
+	/**
+	 * Constant representing a successfully verification.
+	 *
+	 * @var int
+	 */
+	const EMAIL_VERIFIED = 'reminders.verified';
+
+	/**
+	 * Constant representing the user not found response.
+	 *
+	 * @var int
+	 */
+	const INVALID_USER = 'reminders.user';
+
+	/**
+	 * Constant representing an invalid token.
+	 *
+	 * @var int
+	 */
+	const INVALID_TOKEN = 'reminders.token';
+
+	/**
+	 * The verification reminder repository.
 	 *
 	 * @var \Andheiberg\Auth\Reminders\ReminderRepositoryInterface  $reminders
 	 */
@@ -31,21 +56,14 @@ class PasswordBroker {
 	protected $mailer;
 
 	/**
-	 * The view of the password reminder e-mail.
+	 * The view of the verification reminder e-mail.
 	 *
 	 * @var string
 	 */
 	protected $reminderView;
 
 	/**
-	 * The custom password validator callback.
-	 *
-	 * @var \Closure
-	 */
-	protected $passwordValidator;
-
-	/**
-	 * Create a new password broker instance.
+	 * Create a new verification broker instance.
 	 *
 	 * @param  \Andheiberg\Auth\Reminders\ReminderRepositoryInterface  $reminders
 	 * @param  \Andheiberg\Auth\UserProviderInterface  $users
@@ -65,7 +83,7 @@ class PasswordBroker {
 	}
 
 	/**
-	 * Send a password reminder to a user.
+	 * Send a verification reminder to a user.
 	 *
 	 * @param  array    $credentials
 	 * @param  Closure  $callback
@@ -80,21 +98,21 @@ class PasswordBroker {
 
 		if (is_null($user))
 		{
-			throw new PasswordBrokerUserNotFoundException;
+			return self::INVALID_USER;
 		}
 
 		// Once we have the reminder token, we are ready to send a message out to the
-		// user with a link to reset their password. We will then redirect back to
+		// user with a link to verify their email. We will then redirect back to
 		// the current URI having nothing set in the session to indicate errors.
 		$token = $this->reminders->create($user);
 
 		$this->sendReminder($user, $token, $callback);
 
-		return true;
+		return self::REMINDER_SENT;
 	}
 
 	/**
-	 * Send the password reminder e-mail.
+	 * Send the verification reminder e-mail.
 	 *
 	 * @param  \Andheiberg\Auth\Reminders\RemindableInterface  $user
 	 * @param  string   $token
@@ -104,121 +122,64 @@ class PasswordBroker {
 	public function sendReminder(RemindableInterface $user, $token, Closure $callback = null)
 	{
 		// We will use the reminder view that was given to the broker to display the
-		// password reminder e-mail. We'll pass a "token" variable into the views
-		// so that it may be displayed for an user to click for password reset.
+		// verification reminder e-mail. We'll pass a "token" variable into the views
+		// so that it may be displayed for an user to click for email verification.
 		$view = $this->reminderView;
 
-		return $this->mailer->send($view, compact('token', 'user'), function($m) use ($user, $token, $callback)
+		return $this->mailer->send($view, compact('token', 'user'), function($message) use ($user, $token, $callback)
 		{
-			$m->subject('Reset your password');
-			$m->to($user->getReminderEmail());
+			$message->subject('Please verify your email');
+			$message->to($user->getReminderEmail());
 
-			if ( ! is_null($callback)) call_user_func($callback, $m, $user, $token);
+			if ( ! is_null($callback)) call_user_func($callback, $message, $user, $token);
 		});
 	}
 
 	/**
-	 * Reset the password for the given token.
+	 * Verify the email for the given token.
 	 *
 	 * @param  array    $credentials
 	 * @param  Closure  $callback
 	 * @return mixed
 	 */
-	public function reset(array $credentials, Closure $callback = null)
+	public function verify(array $credentials)
 	{
 		// If the responses from the validate method is not a user instance, we will
 		// assume that it is a redirect and simply return it from this method and
 		// the user is properly redirected having an error message on the post.
-		$user = $this->validateReset($credentials);
+		$user = $this->validateVerification($credentials);
 
 		if ( ! $user instanceof RemindableInterface)
 		{
 			return $user;
 		}
 
-		$this->users->updatePassword($user, $credentials['password']);
-
-		$pass = $credentials['password'];
-
-		// Once we have called this callback, we will remove this token row from the
-		// table and return the response from this callback so the user gets sent
-		// to the destination given by the developers from the callback return.
-		if ( ! is_null($callback)) call_user_func($callback, $user, $pass);
+		$this->users->updateAuthVerified($user, true);
 
 		$this->reminders->delete($credentials['token']);
 
-		return true;
+		return self::EMAIL_VERIFIED;
 	}
 
 	/**
-	 * Validate a password reset for the given credentials.
+	 * Validate a email verification for the given credentials.
 	 *
 	 * @param  array  $credentials
 	 * @return \Andheiberg\Auth\Reminders\RemindableInterface
 	 */
-	protected function validateReset(array $credentials)
+	protected function validateVerification(array $credentials)
 	{
 		if (is_null($user = $this->getUser($credentials)))
 		{
-			throw new PasswordBrokerUserNotFoundException;
-			
-		}
-
-		if ( ! $this->validNewPasswords($credentials))
-		{
-			throw new PasswordBrokerInvalidPasswordException;
+			return self::INVALID_USER;
 		}
 
 		if ( ! $this->reminders->exists($user, $credentials['token']))
 		{
-			throw new PasswordBrokerInvalidTokenException;
+			return self::INVALID_TOKEN;
 		}
 
 		return $user;
-	}
-
-	/**
-	 * Set a custom password validator.
-	 *
-	 * @param  \Closure  $callback
-	 * @return void
-	 */
-	public function validator(Closure $callback)
-	{
-		$this->passwordValidator = $callback;
-	}
-
-	/**
-	 * Determine if the passwords match for the request.
-	 *
-	 * @param  array  $credentials
-	 * @return bool
-	 */
-	protected function validNewPasswords(array $credentials)
-	{
-		list($password, $confirm) = array($credentials['password'], $credentials['password_confirmation']);
-
-		if (isset($this->passwordValidator))
-		{
-			return call_user_func($this->passwordValidator, $credentials) && $password == $confirm;
-		}
-		else
-		{
-			return $this->validatePasswordWithDefaults($credentials);
-		}
-	}
-
-	/**
-	 * Determine if the passwords are valid for the request.
-	 *
-	 * @param  array  $credentials
-	 * @return bool
-	 */
-	protected function validatePasswordWithDefaults(array $credentials)
-	{
-		$matches = $credentials['password'] == $credentials['password_confirmation'];
-
-		return $matches && $credentials['password'] && strlen($credentials['password']) >= 6;
 	}
 
 	/**
@@ -244,7 +205,7 @@ class PasswordBroker {
 	}
 
 	/**
-	 * Get the password reminder repository implementation.
+	 * Get the verification reminder repository implementation.
 	 *
 	 * @return \Andheiberg\Auth\Reminders\ReminderRepositoryInterface
 	 */
