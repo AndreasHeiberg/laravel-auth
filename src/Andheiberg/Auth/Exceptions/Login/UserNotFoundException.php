@@ -1,6 +1,6 @@
-<?php namespace Andheiberg\Auth\Exceptions;
+<?php namespace Andheiberg\Auth\Exceptions\Login;
 
-class LoginUserDeactivatedException extends AuthException {
+class UserNotFoundException extends AuthException {
 
 	/**
 	 * The key the error message applies to.
@@ -14,6 +14,6 @@ class LoginUserDeactivatedException extends AuthException {
 	 *
 	 * @var string
 	 */
-	protected $message = 'auth::login.deactivated';
+	protected $message = 'auth::login.user';
 	
 };

@@ -1,6 +1,6 @@
-<?php namespace Andheiberg\Auth\Exceptions;
+<?php namespace Andheiberg\Auth\Exceptions\Login;
 
-class LoginUserUnverifiedException extends AuthException {
+class UserUnverifiedException extends AuthException {
 
 	/**
 	 * The key the error message applies to.

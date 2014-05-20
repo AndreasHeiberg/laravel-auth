@@ -2,10 +2,10 @@
 
 use Illuminate\Database\Connection;
 use Illuminate\Hashing\HasherInterface;
-use Andheiberg\Auth\Exceptions\LoginIncorrectPasswordException;
-use Andheiberg\Auth\Exceptions\LoginUserDeactivatedException;
-use Andheiberg\Auth\Exceptions\LoginUserNotFoundException;
-use Andheiberg\Auth\Exceptions\LoginUserUnverifiedException;
+use Andheiberg\Auth\Exceptions\Login\IncorrectPasswordException;
+use Andheiberg\Auth\Exceptions\Login\UserDeactivatedException;
+use Andheiberg\Auth\Exceptions\Login\UserNotFoundException;
+use Andheiberg\Auth\Exceptions\Login\UserUnverifiedException;
 
 class DatabaseUserProvider implements UserProviderInterface {
 
@@ -140,17 +140,17 @@ class DatabaseUserProvider implements UserProviderInterface {
 
 		if ( ! $this->hasher->check($plain, $user->getAuthPassword()))
 		{
-			throw new LoginIncorrectPasswordException;
+			throw new IncorrectPasswordException;
 		}
 
 		if ( ! $user->getAuthVerified())
 		{
-			throw new LoginUserUnverifiedException;
+			throw new UserUnverifiedException;
 		}
 
 		if ( ! $user->getAuthDeactivated())
 		{
-			throw new LoginUserDeactivatedException;
+			throw new UserDeactivatedException;
 		}
 
 		return true;

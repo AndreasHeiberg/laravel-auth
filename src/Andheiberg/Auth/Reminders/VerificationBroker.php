@@ -3,36 +3,11 @@
 use Closure;
 use Illuminate\Mail\Mailer;
 use Andheiberg\Auth\UserProviderInterface;
+use Andheiberg\Auth\Exceptions\VerificationBroker\UserNotFoundException;
+use Andheiberg\Auth\Exceptions\VerificationBroker\InvalidPasswordException;
+use Andheiberg\Auth\Exceptions\VerificationBroker\InvalidTokenException;
 
 class VerificationBroker {
-
-	/**
-	 * Constant representing a successfully sent reminder.
-	 *
-	 * @var int
-	 */
-	const REMINDER_SENT = 'reminders.sent';
-
-	/**
-	 * Constant representing a successfully verification.
-	 *
-	 * @var int
-	 */
-	const EMAIL_VERIFIED = 'reminders.verified';
-
-	/**
-	 * Constant representing the user not found response.
-	 *
-	 * @var int
-	 */
-	const INVALID_USER = 'reminders.user';
-
-	/**
-	 * Constant representing an invalid token.
-	 *
-	 * @var int
-	 */
-	const INVALID_TOKEN = 'reminders.token';
 
 	/**
 	 * The verification reminder repository.
@@ -98,7 +73,8 @@ class VerificationBroker {
 
 		if (is_null($user))
 		{
-			return self::INVALID_USER;
+			throw new UserNotFoundException;
+			
 		}
 
 		// Once we have the reminder token, we are ready to send a message out to the
@@ -108,7 +84,7 @@ class VerificationBroker {
 
 		$this->sendReminder($user, $token, $callback);
 
-		return self::REMINDER_SENT;
+		return true;
 	}
 
 	/**
@@ -158,7 +134,7 @@ class VerificationBroker {
 
 		$this->reminders->delete($credentials['token']);
 
-		return self::EMAIL_VERIFIED;
+		return true;
 	}
 
 	/**
@@ -171,12 +147,12 @@ class VerificationBroker {
 	{
 		if (is_null($user = $this->getUser($credentials)))
 		{
-			return self::INVALID_USER;
+			throw new UserNotFoundException;
 		}
 
 		if ( ! $this->reminders->exists($user, $credentials['token']))
 		{
-			return self::INVALID_TOKEN;
+			throw new InvalidTokenException;
 		}
 
 		return $user;

@@ -13,6 +13,10 @@ return array(
 	|
 	*/
 
+	"user" => "We can't find a user with that e-mail address.",
+
+	"token" => "This password reset token is invalid.",
+
 	"sent" => "A verification email has been sent to :email. <b>Please check your inbox and your spam filter.</b>",
 
 	"verified" => "Your email has been verified!",

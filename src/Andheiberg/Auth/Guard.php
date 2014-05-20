@@ -6,7 +6,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Illuminate\Session\Store as SessionStore;
 use Symfony\Component\HttpFoundation\Response;
 use Andheiberg\Auth\Reminders\VerificationBroker;
-use Andheiberg\Auth\Exceptions\LoginUserNotFoundException;
+use Andheiberg\Auth\Exceptions\Login\UserNotFoundException;
 
 class Guard {
 
@@ -399,7 +399,7 @@ class Guard {
 	{
 		if (is_null($user))
 		{
-			throw new LoginUserNotFoundException;
+			throw new UserNotFoundException;
 		}
 
 		return $this->provider->validateCredentials($user, $credentials);

@@ -3,9 +3,9 @@
 use Closure;
 use Illuminate\Mail\Mailer;
 use Andheiberg\Auth\UserProviderInterface;
-use Andheiberg\Auth\Exceptions\PasswordBrokerUserNotFoundException;
-use Andheiberg\Auth\Exceptions\PasswordBrokerInvalidPasswordException;
-use Andheiberg\Auth\Exceptions\PasswordBrokerInvalidTokenException;
+use Andheiberg\Auth\Exceptions\PasswordBroker\UserNotFoundException;
+use Andheiberg\Auth\Exceptions\PasswordBroker\InvalidPasswordException;
+use Andheiberg\Auth\Exceptions\PasswordBroker\InvalidTokenException;
 
 class PasswordBroker {
 
@@ -80,7 +80,7 @@ class PasswordBroker {
 
 		if (is_null($user))
 		{
-			throw new PasswordBrokerUserNotFoundException;
+			throw new UserNotFoundException;
 		}
 
 		// Once we have the reminder token, we are ready to send a message out to the
@@ -160,18 +160,18 @@ class PasswordBroker {
 	{
 		if (is_null($user = $this->getUser($credentials)))
 		{
-			throw new PasswordBrokerUserNotFoundException;
+			throw new UserNotFoundException;
 			
 		}
 
 		if ( ! $this->validNewPasswords($credentials))
 		{
-			throw new PasswordBrokerInvalidPasswordException;
+			throw new InvalidPasswordException;
 		}
 
 		if ( ! $this->reminders->exists($user, $credentials['token']))
 		{
-			throw new PasswordBrokerInvalidTokenException;
+			throw new InvalidTokenException;
 		}
 
 		return $user;

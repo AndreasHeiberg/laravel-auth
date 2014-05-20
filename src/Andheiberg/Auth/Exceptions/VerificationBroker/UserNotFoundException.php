@@ -1,6 +1,6 @@
-<?php namespace Andheiberg\Auth\Exceptions;
+<?php namespace Andheiberg\Auth\Exceptions\VerificationBroker;
 
-class PasswordBrokerInvalidPasswordException extends AuthException {
+class UserNotFoundException extends AuthException {
 
 	/**
 	 * The key the error message applies to.
@@ -14,6 +14,6 @@ class PasswordBrokerInvalidPasswordException extends AuthException {
 	 *
 	 * @var string
 	 */
-	protected $message = 'auth::password.password';
+	protected $message = 'auth::verification.user';
 	
 };

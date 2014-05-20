@@ -1,6 +1,6 @@
-<?php namespace Andheiberg\Auth\Exceptions;
+<?php namespace Andheiberg\Auth\Exceptions\PasswordBroker;
 
-class PasswordBrokerUserNotFoundException extends AuthException {
+class InvalidTokenException extends AuthException {
 
 	/**
 	 * The key the error message applies to.
