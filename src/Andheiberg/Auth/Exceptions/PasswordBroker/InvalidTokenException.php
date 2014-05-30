@@ -1,5 +1,7 @@
 <?php namespace Andheiberg\Auth\Exceptions\PasswordBroker;
 
+use Andheiberg\Auth\Exceptions\AuthException;
+
 class InvalidTokenException extends AuthException {
 
 	/**
