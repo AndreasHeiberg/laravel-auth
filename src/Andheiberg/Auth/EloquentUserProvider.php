@@ -144,6 +144,8 @@ class EloquentUserProvider implements UserProviderInterface {
 		{
 			$this->updateAuthVerified($user, true);
 		}
+
+		return $user;
 	}
 
 	/**
