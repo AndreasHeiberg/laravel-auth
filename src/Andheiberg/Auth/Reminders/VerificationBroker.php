@@ -168,7 +168,7 @@ class VerificationBroker {
 	 */
 	public function getUser(array $credentials)
 	{
-		$credentials = array_except($credentials, array('token'));
+		$credentials = array_only($credentials, array('email'));
 
 		$user = $this->users->retrieveByCredentials($credentials);
 
