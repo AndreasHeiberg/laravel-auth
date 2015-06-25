@@ -6,6 +6,7 @@ use Andheiberg\Auth\UserProviderInterface;
 use Andheiberg\Auth\Exceptions\VerificationBroker\UserNotFoundException;
 use Andheiberg\Auth\Exceptions\VerificationBroker\InvalidPasswordException;
 use Andheiberg\Auth\Exceptions\VerificationBroker\InvalidTokenException;
+use Lang;
 
 class VerificationBroker {
 
@@ -104,7 +105,7 @@ class VerificationBroker {
 
 		return $this->mailer->send($view, compact('token', 'user'), function($message) use ($user, $token, $callback)
 		{
-			$message->subject('Please verify your email');
+			$message->subject(Lang::has('auth::verification.subject'));
 			$message->to($user->getReminderEmail());
 
 			if ( ! is_null($callback)) call_user_func($callback, $message, $user, $token);

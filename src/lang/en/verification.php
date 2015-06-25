@@ -21,4 +21,6 @@ return array(
 
 	"verified" => "Your email has been verified!",
 
+	"subject" => "Please verify your email",
+
 );
